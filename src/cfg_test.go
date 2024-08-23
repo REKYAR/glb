@@ -1,7 +1,9 @@
 package main
 
 import (
+	"io"
 	"io/ioutil"
+	"log"
 	"os"
 	"testing"
 )
@@ -21,6 +23,7 @@ func createTempConfigFile(content string) (string, error) {
 }
 
 func TestReadConfig(t *testing.T) {
+	log.SetOutput(io.Discard)
 	validConfig := `{
         "Host": "localhost",
         "Port": 8080,
@@ -32,14 +35,14 @@ func TestReadConfig(t *testing.T) {
     }`
 
 	invalidConfig := `{
-        "Host": "localhost",
-        "Port": "not-an-int",
-        "InitialAddresses": ["192.168.1.1", "192.168.1.2"],
-        "Protocol": "http",
-        "HealthCheckInterval": 30,
-        "HealthCheckTimeout": 5,
-        "HealthCheckUnhealthyThreshold": 3
-    }`
+	    "Host": "localhost",
+	    "Port": "not-an-int",
+	    "InitialAddresses": ["192.168.1.1", "192.168.1.2"],
+	    "Protocol": "http",
+	    "HealthCheckInterval": 30,
+	    "HealthCheckTimeout": 5,
+	    "HealthCheckUnhealthyThreshold": 3
+	}`
 
 	tests := []struct {
 		name          string
