@@ -30,7 +30,7 @@ func (j *JsonConfigReader) ReadConfig() (Config, error) {
 		log.Fatalf("Config file not found: %s", j.Path)
 		return Config{}, err
 	}
-	if j.Path[-5:] != ".json" {
+	if len(j.Path) < 0 && j.Path[len(j.Path)-5:] != ".json" {
 		log.Fatalf("Config file must be a JSON file")
 		return Config{}, err
 	}
