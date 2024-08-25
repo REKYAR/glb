@@ -15,9 +15,10 @@ type Config struct {
 	Port                          int
 	InitialAddresses              []string
 	Protocol                      string
-	HealthCheckInterval           int
-	HealthCheckTimeout            int
-	HealthCheckUnhealthyThreshold int
+	HealthCheckPath               string
+	HealthCheckInterval           int //ms
+	HealthCheckTimeout            int //ms
+	HealthCheckUnhealthyThreshold int //ms
 }
 
 type JsonConfigReader struct {
