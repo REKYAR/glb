@@ -29,7 +29,7 @@ func NewLoadBalancer(config *Config) *LoadBalancer {
 }
 
 func (l *LoadBalancer) Serve() error {
-	switch l.InitalConfig.Protocol {
+	switch l.Config.Protocol {
 	case "http":
 		l.ServeHTTP()
 		return nil
@@ -37,7 +37,7 @@ func (l *LoadBalancer) Serve() error {
 		l.ServeRPC()
 		return nil
 	default:
-		log.Fatalf("Unsupported protocol: %s", l.InitalConfig.Protocol)
+		log.Fatalf("Unsupported protocol: %s", l.Config.Protocol)
 		return errors.New("Unsupported protocol")
 	}
 }

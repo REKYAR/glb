@@ -19,6 +19,7 @@ type Config struct {
 	HealthCheckInterval           int //ms
 	HealthCheckTimeout            int //ms
 	HealthCheckUnhealthyThreshold int //ms
+	HealthCheckDownInterval       int //ms
 }
 
 type JsonConfigReader struct {
