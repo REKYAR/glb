@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"log"
 	"os"
 )
@@ -49,4 +50,26 @@ func (j *JsonConfigReader) ReadConfig() (Config, error) {
 		return Config{}, err
 	}
 	return config, nil
+}
+
+func (c *Config) ValidateConfig() error {
+	if len(c.InitialAddresses) == 0 {
+		return errors.New("InitialAddresses cannot be empty")
+	}
+	if c.Protocol != "http" && c.Protocol != "rpc" {
+		return errors.New("Unsupported protocol")
+	}
+	if c.HealthCheckInterval <= 0 {
+		return errors.New("HealthCheckInterval must be positive")
+	}
+	if c.HealthCheckTimeout <= 0 {
+		return errors.New("HealthCheckTimeout must be positive")
+	}
+	if c.HealthCheckUnhealthyThreshold <= 0 {
+		return errors.New("HealthCheckUnhealthyThreshold must be positive")
+	}
+	if c.HealthCheckDownInterval <= 0 {
+		return errors.New("HealthCheckDownInterval must be positive")
+	}
+	return nil
 }

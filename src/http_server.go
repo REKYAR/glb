@@ -119,7 +119,7 @@ func (l *LoadBalancer) UpdateDownHosts() {
 	}
 }
 
-func (l *LoadBalancer) ServeHTTP() {
+func (l *LoadBalancer) ServeHTTP() error {
 	log.Printf("Starting HTTP server on %s:%d", l.Config.Host, l.Config.Port)
 	//initial host scheck
 	l.InitialHostCheck()
@@ -147,6 +147,12 @@ func (l *LoadBalancer) ServeHTTP() {
 		r.Out.URL.Host = l.Config.InitialAddresses[0] //TODO: implement load balancing
 	}
 
+	// listener, err := net.Listen("tcp", l.Config.Host+":"+fmt.Sprintf("%d", l.Config.Port))
+	// if err != nil {
+	// 	return err
+	// }
+	// l.Config.Port = listener.Addr().(*net.TCPAddr).Port
+
 	rpx := &httputil.ReverseProxy{
 		Rewrite: rewrite,
 	}
@@ -155,6 +161,6 @@ func (l *LoadBalancer) ServeHTTP() {
 		Addr:    l.Config.Host + ":" + fmt.Sprintf("%d", l.Config.Port),
 		Handler: rpx,
 	}
-
-	s.ListenAndServe()
+	//return s.Serve(listener)
+	return s.ListenAndServe()
 }

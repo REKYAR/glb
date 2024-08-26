@@ -29,6 +29,9 @@ func NewLoadBalancer(config *Config) *LoadBalancer {
 }
 
 func (l *LoadBalancer) Serve() error {
+	if err := l.Config.ValidateConfig(); err != nil {
+		return err
+	}
 	switch l.Config.Protocol {
 	case "http":
 		l.ServeHTTP()
