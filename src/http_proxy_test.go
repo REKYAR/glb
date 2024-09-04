@@ -14,7 +14,7 @@ func TestLoadBalancer(t *testing.T) {
 	config := &Config{
 		Host:                          "localhost",
 		Port:                          8080,
-		InitialAddresses:              []string{"http://backend1.example.com", "http://backend2.example.com"},
+		InitialAddresses:              []string{"http://localhost:8081", "http://localhost:8082"},
 		Protocol:                      "http",
 		HealthCheckPath:               "/health",
 		HealthCheckInterval:           1000,
@@ -22,6 +22,17 @@ func TestLoadBalancer(t *testing.T) {
 		HealthCheckUnhealthyThreshold: 200,
 		HealthCheckDownInterval:       5000,
 	}
+	server1 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("Server 1"))
+	}))
+	defer server1.Close()
+
+	server2 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("Server 2"))
+	}))
+	defer server2.Close()
 
 	t.Run("TestInitialHostCheck", func(t *testing.T) {
 		lb := NewLoadBalancer(config)
@@ -168,7 +179,7 @@ func TestJsonConfigReader(t *testing.T) {
 	config := Config{
 		Host:             "localhost",
 		Port:             8080,
-		InitialAddresses: []string{"http://backend1.example.com", "http://backend2.example.com"},
+		InitialAddresses: []string{"http://localhost:8081", "http://localhost:8082"},
 		Protocol:         "http",
 	}
 
@@ -196,10 +207,14 @@ func TestJsonConfigReader(t *testing.T) {
 func TestLoadBalancerServe(t *testing.T) {
 	t.Run("TestServeHTTP", func(t *testing.T) {
 		config := &Config{
-			Host:             "localhost",
-			Port:             0,
-			InitialAddresses: []string{"http://backend1.example.com"},
-			Protocol:         "http",
+			Host:                          "localhost",
+			Port:                          0,
+			InitialAddresses:              []string{"http://localhost:8081"},
+			Protocol:                      "http",
+			HealthCheckInterval:           1000,
+			HealthCheckTimeout:            500,
+			HealthCheckUnhealthyThreshold: 200,
+			HealthCheckDownInterval:       5000,
 		}
 		lb := NewLoadBalancer(config)
 

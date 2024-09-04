@@ -43,15 +43,18 @@ func (l *LoadBalancer) InitialHostCheck() {
 			//res, err := http.Get(host + l.Config.HealthCheckPath)
 			res, timedelta, err := l.timeGet(host + l.Config.HealthCheckPath)
 			if err != nil {
+				fmt.Printf("Error checking host %s: %s", host, err)
 				log.Printf("Error checking host %s: %s", host, err)
 				return
 			}
 			if res.StatusCode != 200 {
+				fmt.Printf("Host %s unable to intialize, status %d, body %s", host, res.StatusCode, res.Body)
 				log.Printf("Host %s unable to intialize, status %d, body %s", host, res.StatusCode, res.Body)
 				l.HostStatus.Store(host, HTTP_STATUS_DOWN)
 				return
 			}
 			if timedelta > time.Duration(l.Config.HealthCheckUnhealthyThreshold)*time.Millisecond {
+				fmt.Printf("Host %s has high latency: %s", host, timedelta)
 				log.Printf("Host %s has high latency: %s", host, timedelta)
 				l.HostStatus.Store(host, HTTP_STATUS_HIGH_LATENCY)
 				return
