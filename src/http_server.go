@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptrace"
 	"net/http/httputil"
+	"net/url"
 	"time"
 )
 
@@ -145,9 +146,34 @@ func (l *LoadBalancer) ServeHTTP() error {
 	}()
 
 	//start http server
-
+	//check https://stackoverflow.com/questions/23164547/golang-reverseproxy-not-working
 	rewrite := func(r *httputil.ProxyRequest) {
-		r.Out.URL.Host = l.Config.InitialAddresses[0] //TODO: implement load balancing
+		//fmt.Printf("rewriting request in %s ", r.In.URL)
+		r.SetXForwarded()
+		fmt.Printf("rewriting request in %s ", r.In.URL)
+		// url := l.getNextURL()
+		// fmt.Print("got url ")
+		// if url == nil {
+		// 	log.Printf("No healthy hosts available")
+		// 	return
+		// }
+		// fmt.Printf("url: %s ", string(url.Host))
+		targetURL, err := url.Parse(l.Config.InitialAddresses[0]) // TODO: implement load balancing + do the parse in config parse
+		if err != nil {
+			log.Printf("Error parsing URL %s: %s", l.Config.InitialAddresses[0], err)
+			return
+		}
+		r.SetURL(targetURL)
+		fmt.Printf("rewriting request out %s ", r.Out.URL)
+	}
+
+	// modify_response := func(r *http.Response) error {
+	// 	fmt.Printf("response %s ", r.Status)
+	// 	return nil
+	// }
+
+	error_handler := func(w http.ResponseWriter, r *http.Request, err error) {
+		fmt.Printf("eh error %s %s", err, r.Proto)
 	}
 
 	// listener, err := net.Listen("tcp", l.Config.Host+":"+fmt.Sprintf("%d", l.Config.Port))
@@ -158,6 +184,8 @@ func (l *LoadBalancer) ServeHTTP() error {
 
 	rpx := &httputil.ReverseProxy{
 		Rewrite: rewrite,
+		//ModifyResponse: modify_response,
+		ErrorHandler: error_handler,
 	}
 
 	s := &http.Server{

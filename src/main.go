@@ -14,6 +14,10 @@ func main() {
 		log.Fatalf("Error reading config: %s", err)
 		return
 	}
-	LoadBalancer := NewLoadBalancer(&config)
+	LoadBalancer, err := NewLoadBalancer(&config)
+	if err != nil {
+		log.Fatalf("Error creating load balancer: %s", err)
+		return
+	}
 	LoadBalancer.Serve()
 }
