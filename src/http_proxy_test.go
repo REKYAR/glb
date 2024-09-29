@@ -1,11 +1,14 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"sync"
 	"testing"
 	"time"
 )
@@ -13,12 +16,12 @@ import (
 func TestLoadBalancer(t *testing.T) {
 	server1 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/health" {
-			fmt.Printf("/h Server 1 %s\n", r.URL.Host)
+			//fmt.Printf("/h Server 1 %s\n", r.URL.Host)
 			w.WriteHeader(http.StatusOK)
 			w.Write([]byte("Healthy"))
 		}
 		if r.URL.Path == "/" {
-			fmt.Printf("/ Server 1 %s\n", r.URL.Host)
+			//fmt.Printf("/ Server 1 %s\n", r.URL.Host)
 			w.WriteHeader(http.StatusOK)
 			w.Write([]byte("Server 1"))
 		} else {
@@ -31,12 +34,12 @@ func TestLoadBalancer(t *testing.T) {
 
 	server2 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/health" {
-			fmt.Printf("/h Server 2 %s\n", r.URL)
+			//fmt.Printf("/h Server 2 %s\n", r.URL)
 			w.WriteHeader(http.StatusOK)
 			w.Write([]byte("Healthy"))
 		}
 		if r.URL.Path == "/" {
-			fmt.Printf("/ Server 2 %s\n", r.URL.Host)
+			//fmt.Printf("/ Server 2 %s\n", r.URL.Host)
 			w.WriteHeader(http.StatusOK)
 			w.Write([]byte("Server 2"))
 		} else {
@@ -57,21 +60,24 @@ func TestLoadBalancer(t *testing.T) {
 		HealthCheckDownInterval:       5000,
 	}
 
-	// t.Run("TestInitialHostCheck", func(t *testing.T) {
-	// 	lb := NewLoadBalancer(config)
-	// 	lb.InitialHostCheck()
-	// 	time.Sleep(100 * time.Millisecond)
+	t.Run("TestInitialHostCheck", func(t *testing.T) {
+		lb, err := NewLoadBalancer(config)
+		if err != nil {
+			t.Fatalf("Failed to create LoadBalancer: %v", err)
+		}
+		lb.InitialHostCheck()
+		time.Sleep(100 * time.Millisecond)
 
-	// 	for _, host := range config.InitialAddresses {
-	// 		status, ok := lb.HostStatus.Load(host)
-	// 		if !ok {
-	// 			t.Errorf("Host status not set for %s", host)
-	// 		}
-	// 		if status != HTTP_STATUS_HEALTHY && status != HTTP_STATUS_DOWN && status != HTTP_STATUS_HIGH_LATENCY {
-	// 			t.Errorf("Unexpected status for host %s: %s", host, status)
-	// 		}
-	// 	}
-	// })
+		for _, host := range config.InitialAddresses {
+			status, ok := lb.HostStatus.Load(host)
+			if !ok {
+				t.Errorf("Host status not set for %s", host)
+			}
+			if status != HTTP_STATUS_HEALTHY && status != HTTP_STATUS_DOWN && status != HTTP_STATUS_HIGH_LATENCY {
+				t.Errorf("Unexpected status for host %s: %s", host, status)
+			}
+		}
+	})
 
 	t.Run("TestServeHTTP", func(t *testing.T) {
 		lb, err := NewLoadBalancer(config)
@@ -149,158 +155,176 @@ func TestLoadBalancer(t *testing.T) {
 		lbServer.Close()
 	})
 
-	// 	t.Run("TestUpdateAliveHosts", func(t *testing.T) {
-	// 		lb := NewLoadBalancer(config)
-	// 		lb.HostStatus.Store(config.InitialAddresses[0], HTTP_STATUS_HEALTHY)
-	// 		lb.UpdateAliveHosts()
-	// 		time.Sleep(100 * time.Millisecond)
+	t.Run("TestUpdateAliveHosts", func(t *testing.T) {
+		lb, err := NewLoadBalancer(config)
+		if err != nil {
+			t.Fatalf("Failed to create LoadBalancer: %v", err)
+		}
+		lb.HostStatus.Store(config.InitialAddresses[0], HTTP_STATUS_HEALTHY)
+		lb.UpdateAliveHosts()
+		time.Sleep(100 * time.Millisecond)
 
-	// 		status, _ := lb.HostStatus.Load(config.InitialAddresses[0])
-	// 		if status != HTTP_STATUS_HEALTHY && status != HTTP_STATUS_DOWN && status != HTTP_STATUS_HIGH_LATENCY {
-	// 			t.Errorf("Unexpected status after update: %s", status)
-	// 		}
-	// 	})
+		status, _ := lb.HostStatus.Load(config.InitialAddresses[0])
+		if status != HTTP_STATUS_HEALTHY && status != HTTP_STATUS_DOWN && status != HTTP_STATUS_HIGH_LATENCY {
+			t.Errorf("Unexpected status after update: %s", status)
+		}
+	})
 
-	// 	t.Run("TestUpdateDownHosts", func(t *testing.T) {
-	// 		lb := NewLoadBalancer(config)
-	// 		lb.HostStatus.Store(config.InitialAddresses[0], HTTP_STATUS_DOWN)
-	// 		lb.UpdateDownHosts()
-	// 		time.Sleep(100 * time.Millisecond)
+	t.Run("TestUpdateDownHosts", func(t *testing.T) {
+		lb, err := NewLoadBalancer(config)
+		if err != nil {
+			t.Fatalf("Failed to create LoadBalancer: %v", err)
+		}
+		lb.HostStatus.Store(config.InitialAddresses[0], HTTP_STATUS_DOWN)
+		lb.UpdateDownHosts()
+		time.Sleep(100 * time.Millisecond)
 
-	// 		status, _ := lb.HostStatus.Load(config.InitialAddresses[0])
-	// 		if status != HTTP_STATUS_HEALTHY && status != HTTP_STATUS_DOWN && status != HTTP_STATUS_HIGH_LATENCY {
-	// 			t.Errorf("Unexpected status after update: %s", status)
-	// 		}
-	// 	})
+		status, _ := lb.HostStatus.Load(config.InitialAddresses[0])
+		if status != HTTP_STATUS_HEALTHY && status != HTTP_STATUS_DOWN && status != HTTP_STATUS_HIGH_LATENCY {
+			t.Errorf("Unexpected status after update: %s", status)
+		}
+	})
 
-	// 	t.Run("TestTimeGet", func(t *testing.T) {
-	// 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-	// 			time.Sleep(50 * time.Millisecond)
-	// 			w.WriteHeader(http.StatusOK)
-	// 		}))
-	// 		defer server.Close()
+	t.Run("TestTimeGet", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			time.Sleep(50 * time.Millisecond)
+			w.WriteHeader(http.StatusOK)
+		}))
+		defer server.Close()
 
-	// 		lb := NewLoadBalancer(config)
-	// 		res, duration, err := lb.timeGet(server.URL)
+		lb, err := NewLoadBalancer(config)
+		if err != nil {
+			t.Fatalf("Failed to create LoadBalancer: %v", err)
+		}
+		res, duration, err := lb.timeGet(server.URL)
 
-	// 		if err != nil {
-	// 			t.Errorf("timeGet returned an error: %v", err)
-	// 		}
-	// 		if res.StatusCode != http.StatusOK {
-	// 			t.Errorf("Expected status 200, got %d", res.StatusCode)
-	// 		}
-	// 		if duration < 50*time.Millisecond {
-	// 			t.Errorf("Expected duration >= 50ms, got %v", duration)
-	// 		}
-	// 	})
+		if err != nil {
+			t.Errorf("timeGet returned an error: %v", err)
+		}
+		if res.StatusCode != http.StatusOK {
+			t.Errorf("Expected status 200, got %d", res.StatusCode)
+		}
+		if duration < 50*time.Millisecond {
+			t.Errorf("Expected duration >= 50ms, got %v", duration)
+		}
+	})
 
-	// 	t.Run("TestTimeGetTimeout", func(t *testing.T) {
-	// 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-	// 			time.Sleep(600 * time.Millisecond)
-	// 			w.WriteHeader(http.StatusOK)
-	// 		}))
-	// 		defer server.Close()
+	t.Run("TestTimeGetTimeout", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			time.Sleep(600 * time.Millisecond)
+			w.WriteHeader(http.StatusOK)
+		}))
+		defer server.Close()
 
-	// 		config.HealthCheckTimeout = 500 // ms
-	// 		lb := NewLoadBalancer(config)
-	// 		_, _, err := lb.timeGet(server.URL)
+		config.HealthCheckTimeout = 500 // ms
+		lb, err := NewLoadBalancer(config)
+		if err != nil {
+			t.Fatalf("Failed to create LoadBalancer: %v", err)
+		}
+		_, _, err = lb.timeGet(server.URL)
 
-	// 		if err == nil {
-	// 			t.Error("Expected timeout error, got nil")
-	// 		}
-	// 	})
+		if err == nil {
+			t.Error("Expected timeout error, got nil")
+		}
+	})
 
-	// 	t.Run("TestHostStatusTransitions", func(t *testing.T) {
-	// 		lb := NewLoadBalancer(config)
-	// 		host := "http://example.com"
+	t.Run("TestHostStatusTransitions", func(t *testing.T) {
+		lb, err := NewLoadBalancer(config)
+		if err != nil {
+			t.Fatalf("Failed to create LoadBalancer: %v", err)
+		}
+		host := "http://example.com"
 
-	// 		transitions := []string{
-	// 			HTTP_STATUS_UNKNOWN,
-	// 			HTTP_STATUS_HEALTHY,
-	// 			HTTP_STATUS_HIGH_LATENCY,
-	// 			HTTP_STATUS_DOWN,
-	// 			HTTP_STATUS_HEALTHY,
-	// 		}
+		transitions := []string{
+			HTTP_STATUS_UNKNOWN,
+			HTTP_STATUS_HEALTHY,
+			HTTP_STATUS_HIGH_LATENCY,
+			HTTP_STATUS_DOWN,
+			HTTP_STATUS_HEALTHY,
+		}
 
-	// 		for i, status := range transitions {
-	// 			lb.HostStatus.Store(host, status)
-	// 			if currentStatus, _ := lb.HostStatus.Load(host); currentStatus != status {
-	// 				t.Errorf("Step %d: Expected status %s, got %v", i, status, currentStatus)
-	// 			}
-	// 		}
-	// 	})
+		for i, status := range transitions {
+			lb.HostStatus.Store(host, status)
+			if currentStatus, _ := lb.HostStatus.Load(host); currentStatus != status {
+				t.Errorf("Step %d: Expected status %s, got %v", i, status, currentStatus)
+			}
+		}
+	})
 
-	// 	t.Run("TestConcurrentHostStatusUpdates", func(t *testing.T) {
-	// 		lb := NewLoadBalancer(config)
-	// 		host := "http://example.com"
+	t.Run("TestConcurrentHostStatusUpdates", func(t *testing.T) {
+		lb, err := NewLoadBalancer(config)
+		if err != nil {
+			t.Fatalf("Failed to create LoadBalancer: %v", err)
+		}
+		host := "http://example.com"
 
-	// 		var wg sync.WaitGroup
-	// 		for i := 0; i < 100; i++ {
-	// 			wg.Add(1)
-	// 			go func() {
-	// 				defer wg.Done()
-	// 				lb.HostStatus.Store(host, HTTP_STATUS_HEALTHY)
-	// 				lb.HostStatus.Load(host)
-	// 			}()
-	// 		}
-	// 		wg.Wait()
+		var wg sync.WaitGroup
+		for i := 0; i < 100; i++ {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				lb.HostStatus.Store(host, HTTP_STATUS_HEALTHY)
+				lb.HostStatus.Load(host)
+			}()
+		}
+		wg.Wait()
 
-	// 		if status, _ := lb.HostStatus.Load(host); status != HTTP_STATUS_HEALTHY {
-	// 			t.Errorf("Expected final status HEALTHY, got %v", status)
-	// 		}
-	// 	})
+		if status, _ := lb.HostStatus.Load(host); status != HTTP_STATUS_HEALTHY {
+			t.Errorf("Expected final status HEALTHY, got %v", status)
+		}
+	})
 
-	// 	t.Run("TestConfigValidation", func(t *testing.T) {
-	// 		invalidConfigs := []Config{
-	// 			{InitialAddresses: []string{}},
-	// 			{Protocol: "invalid"},
-	// 			{HealthCheckInterval: -1},
-	// 			{HealthCheckTimeout: -1},
-	// 			{HealthCheckUnhealthyThreshold: -1},
-	// 			{HealthCheckDownInterval: -1},
-	// 		}
+	t.Run("TestConfigValidation", func(t *testing.T) {
+		invalidConfigs := []Config{
+			{InitialAddresses: []string{}},
+			{Protocol: "invalid"},
+			{HealthCheckInterval: -1},
+			{HealthCheckTimeout: -1},
+			{HealthCheckUnhealthyThreshold: -1},
+			{HealthCheckDownInterval: -1},
+		}
 
-	// 		for _, cfg := range invalidConfigs {
-	// 			if err := cfg.ValidateConfig(); err == nil {
-	// 				t.Errorf("Expected error for invalid config: %+v", cfg)
-	// 			}
-	// 		}
-	// 	})
-	// }
+		for _, cfg := range invalidConfigs {
+			if err := cfg.ValidateConfig(); err == nil {
+				t.Errorf("Expected error for invalid config: %+v", cfg)
+			}
+		}
+	})
+}
 
-	// func TestJsonConfigReader(t *testing.T) {
-	// 	configFile, err := os.CreateTemp("", "config*.json")
-	// 	if err != nil {
-	// 		t.Fatalf("Failed to create temp file: %v", err)
-	// 	}
-	// 	defer os.Remove(configFile.Name())
+func TestJsonConfigReader(t *testing.T) {
+	configFile, err := os.CreateTemp("", "config*.json")
+	if err != nil {
+		t.Fatalf("Failed to create temp file: %v", err)
+	}
+	defer os.Remove(configFile.Name())
 
-	// 	config := Config{
-	// 		Host:             "localhost",
-	// 		Port:             8080,
-	// 		InitialAddresses: []string{"http://localhost:8081", "http://localhost:8082"},
-	// 		Protocol:         "http",
-	// 	}
+	config := Config{
+		Host:             "localhost",
+		Port:             8080,
+		InitialAddresses: []string{"http://localhost:8081", "http://localhost:8082"},
+		Protocol:         "http",
+	}
 
-	// 	jsonData, err := json.Marshal(config)
-	// 	if err != nil {
-	// 		t.Fatalf("Failed to marshal config: %v", err)
-	// 	}
+	jsonData, err := json.Marshal(config)
+	if err != nil {
+		t.Fatalf("Failed to marshal config: %v", err)
+	}
 
-	// 	if _, err := configFile.Write(jsonData); err != nil {
-	// 		t.Fatalf("Failed to write config: %v", err)
-	// 	}
-	// 	configFile.Close()
+	if _, err := configFile.Write(jsonData); err != nil {
+		t.Fatalf("Failed to write config: %v", err)
+	}
+	configFile.Close()
 
-	// 	reader := JsonConfigReader{Path: configFile.Name()}
-	// 	readConfig, err := reader.ReadConfig()
-	// 	if err != nil {
-	// 		t.Fatalf("Failed to read config: %v", err)
-	// 	}
+	reader := JsonConfigReader{Path: configFile.Name()}
+	readConfig, err := reader.ReadConfig()
+	if err != nil {
+		t.Fatalf("Failed to read config: %v", err)
+	}
 
-	// 	if readConfig.Host != config.Host || readConfig.Port != config.Port || readConfig.Protocol != config.Protocol {
-	// 		t.Errorf("Read config does not match written config")
-	// 	}
+	if readConfig.Host != config.Host || readConfig.Port != config.Port || readConfig.Protocol != config.Protocol {
+		t.Errorf("Read config does not match written config")
+	}
 }
 
 // func TestLoadBalancerServe(t *testing.T) {
