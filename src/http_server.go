@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"net/http/httptrace"
 	"net/http/httputil"
-	"net/url"
 	"time"
 )
 
@@ -150,21 +149,21 @@ func (l *LoadBalancer) ServeHTTP() error {
 	rewrite := func(r *httputil.ProxyRequest) {
 		//fmt.Printf("rewriting request in %s ", r.In.URL)
 		r.SetXForwarded()
-		fmt.Printf("rewriting request in %s ", r.In.URL)
-		// url := l.getNextURL()
-		// fmt.Print("got url ")
-		// if url == nil {
-		// 	log.Printf("No healthy hosts available")
-		// 	return
-		// }
-		// fmt.Printf("url: %s ", string(url.Host))
-		targetURL, err := url.Parse(l.Config.InitialAddresses[0]) // TODO: implement load balancing + do the parse in config parse
-		if err != nil {
-			log.Printf("Error parsing URL %s: %s", l.Config.InitialAddresses[0], err)
+		//fmt.Printf("rewriting request in %s ", r.In.URL)
+		url := l.getNextURL()
+		//fmt.Print("got url ")
+		if url == nil {
+			log.Printf("No healthy hosts available")
 			return
 		}
-		r.SetURL(targetURL)
-		fmt.Printf("rewriting request out %s ", r.Out.URL)
+		//fmt.Printf("new_url: %s ", string(url.Host))
+		//targetURL, err := url.Parse(l.Config.InitialAddresses[0]) // TODO: implement load balancing + do the parse in config parse
+		// if err != nil {
+		// 	log.Printf("Error parsing URL %s: %s", l.Config.InitialAddresses[0], err)
+		// 	return
+		// }
+		r.SetURL(url)
+		//fmt.Printf("rewriting request out %s ", r.Out.URL)
 	}
 
 	// modify_response := func(r *http.Response) error {

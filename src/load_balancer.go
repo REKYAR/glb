@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"fmt"
 	"log"
 	"net/url"
 	"sync"
@@ -26,6 +27,7 @@ func NewLoadBalancer(config *Config) (*LoadBalancer, error) {
 		if error != nil {
 			return nil, errors.New("Error parsing URL: " + error.Error())
 		}
+		print("Parsed URL: ", host, "uu", url)
 		parsedURLs.Store(host, url)
 	}
 	return &LoadBalancer{
@@ -45,11 +47,15 @@ func (l *LoadBalancer) getNextURL() *url.URL {
 		if !ok || status == HTTP_STATUS_DOWN {
 			continue
 		}
-		status, ok = l.parsedURLs.Load(l.currentIdx)
+		//fmt.Print("Returning URL pt 1: ", l.Config.InitialAddresses[l.currentIdx], status)
+		outUrl, ok := l.parsedURLs.Load(l.Config.InitialAddresses[l.currentIdx])
+		//fmt.Print("Returning URL pt 1.5: ", ok)
 		if !ok {
+			fmt.Print("Error loading URL")
 			return nil
 		}
-		return status.(*url.URL)
+		//fmt.Print("Returning URL pt 2: ", outUrl)
+		return outUrl.(*url.URL)
 	}
 	return nil
 }
